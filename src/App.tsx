@@ -5,10 +5,7 @@ function App() {
     <>
       <section>
         <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
+          <h1>MINIAPP</h1>
         </div>
       </section>
     </>
