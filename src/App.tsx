@@ -1,13 +1,11 @@
-import './App.css'
+import "./App.css";
 
 function App() {
   return (
-    <>
-      <section>
-          <h1>MINIAPP</h1>
-      </section>
-    </>
-  )
+    <section>
+      <h1>MINIAPP</h1>
+    </section>
+  );
 }
 
-export default App
+export default App;
