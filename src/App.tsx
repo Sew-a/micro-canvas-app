@@ -1,10 +1,15 @@
 import "./App.css";
+import { CanvasStage } from "./components/canvas/CanvasStage";
+import { Toolbar } from "./components/toolbox/Toolbar";
 
 function App() {
   return (
-    <section>
-      <h1>MINIAPP</h1>
-    </section>
+    <div className="app-shell">
+      <Toolbar />
+      <main className="canvas-area">
+        <CanvasStage />
+      </main>
+    </div>
   );
 }
 
