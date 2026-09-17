@@ -1,17 +1,22 @@
 import { create } from "zustand";
-import type { CanvasElement, ToolId } from "../types/canvas";
+import { STICKER_FILLS } from "../constants/canvas";
+import type { Camera, CanvasElement, ToolId } from "../types/canvas";
 
-interface CanvasState {
+export interface CanvasState {
   elements: CanvasElement[];
   selectedId: string | null;
   editingId: string | null;
   activeTool: ToolId;
+  camera: Camera;
+  activeStickerFill: string;
   setActiveTool: (tool: ToolId) => void;
   addElement: (element: CanvasElement) => void;
   updateElement: (id: string, patch: Partial<CanvasElement>) => void;
   removeElement: (id: string) => void;
   select: (id: string | null) => void;
   setEditing: (id: string | null) => void;
+  setCamera: (patch: Partial<Camera>) => void;
+  setActiveStickerFill: (fill: string) => void;
 }
 
 export const useCanvasStore = create<CanvasState>()((set) => ({
@@ -19,6 +24,8 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   selectedId: null,
   editingId: null,
   activeTool: "select",
+  camera: { x: 0, y: 0, scale: 1 },
+  activeStickerFill: STICKER_FILLS[0],
 
   setActiveTool: (tool) => set({ activeTool: tool }),
 
@@ -47,4 +54,9 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   select: (id) => set({ selectedId: id }),
 
   setEditing: (id) => set({ editingId: id }),
+
+  setCamera: (patch) =>
+    set((state) => ({ camera: { ...state.camera, ...patch } })),
+
+  setActiveStickerFill: (fill) => set({ activeStickerFill: fill }),
 }));

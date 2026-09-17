@@ -1,145 +1,59 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import type Konva from "konva";
-import { Layer, Rect, Stage } from "react-konva";
+import { Layer, Line, Rect, Stage } from "react-konva";
 import {
   ACCENT_BLUE,
-  DEFAULT_SQUARE_HEIGHT,
-  DEFAULT_SQUARE_WIDTH,
+  DRAW_STROKE,
+  DRAW_STROKE_WIDTH,
+  DRAW_TENSION,
 } from "../../constants/canvas";
-import {
-  createSquare,
-  createText,
-  isClick,
-  normalizeBox,
-} from "../../lib/elements";
+import { flattenPoints, normalizeBox } from "../../lib/elements";
 import { useCanvasStore } from "../../store/canvasStore";
-import type { ElementPosition, ToolId } from "../../types/canvas";
+import { useCanvasInteractions } from "../../hooks/useCanvasInteractions";
+import { useCanvasKeyboard } from "../../hooks/useCanvasKeyboard";
+import { useCanvasSize } from "../../hooks/useCanvasSize";
+import { BottomPanel } from "./BottomPanel";
+import { ColorPanel } from "./ColorPanel";
 import { ElementNode } from "./ElementNode";
 import { GridBackground } from "./GridBackground";
 import { SelectionTransformer } from "./SelectionTransformer";
 import { TextEditor } from "./TextEditor";
 
-interface DrawState {
-  start: ElementPosition;
-  current: ElementPosition;
-}
-
-const EDIT_SHORTCUTS: Record<string, ToolId> = {
-  v: "select",
-  r: "square",
-  t: "text",
-};
-
 export function CanvasStage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const layerRef = useRef<Konva.Layer>(null);
-  const [size, setSize] = useState({ width: 900, height: 600 });
-  const [drawing, setDrawing] = useState<DrawState | null>(null);
 
+  const size = useCanvasSize(containerRef);
+  const camera = useCanvasStore((state) => state.camera);
   const elements = useCanvasStore((state) => state.elements);
-  const activeTool = useCanvasStore((state) => state.activeTool);
-  const addElement = useCanvasStore((state) => state.addElement);
-  const select = useCanvasStore((state) => state.select);
-  const setEditing = useCanvasStore((state) => state.setEditing);
+
+  const interactions = useCanvasInteractions(stageRef);
+  useCanvasKeyboard();
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const update = () =>
-      setSize({ width: container.clientWidth, height: container.clientHeight });
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
+    const preventFocusSteal = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.tagName === "TEXTAREA" ||
-          target.tagName === "INPUT" ||
-          target.isContentEditable)
-      ) {
-        return;
-      }
-      const store = useCanvasStore.getState();
-      const tool = EDIT_SHORTCUTS[event.key.toLowerCase()];
-      if (tool) {
-        store.setActiveTool(tool);
-        return;
-      }
-      if (event.key === "Escape") {
-        store.select(null);
-        store.setEditing(null);
-        return;
-      }
-      if (event.key === "Backspace" || event.key === "Delete") {
-        if (store.selectedId) {
-          store.removeElement(store.selectedId);
-        }
+      if (target?.closest(".konvajs-content")) {
+        event.preventDefault();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    container.addEventListener("mousedown", preventFocusSteal, true);
+    return () =>
+      container.removeEventListener("mousedown", preventFocusSteal, true);
   }, []);
 
-  const getPointer = (): ElementPosition | null => {
-    const position = stageRef.current?.getPointerPosition();
-    return position ? { x: position.x, y: position.y } : null;
-  };
-
-  const handlePointerDown = (
-    event: Konva.KonvaEventObject<MouseEvent | TouchEvent>
-  ) => {
-    if (activeTool === "select") {
-      if (event.target === event.target.getStage()) select(null);
-      return;
-    }
-    const position = getPointer();
-    if (!position) return;
-
-    if (activeTool === "square") {
-      setDrawing({ start: position, current: position });
-    } else if (activeTool === "text") {
-      const element = createText(position);
-      addElement(element);
-      setEditing(element.id);
-    }
-  };
-
-  const handlePointerMove = () => {
-    if (!drawing) return;
-    const position = getPointer();
-    if (position) setDrawing({ start: drawing.start, current: position });
-  };
-
-  const handlePointerUp = () => {
-    if (!drawing) return;
-    if (isClick(drawing.start, drawing.current)) {
-      addElement(
-        createSquare(
-          drawing.start.x - DEFAULT_SQUARE_WIDTH / 2,
-          drawing.start.y - DEFAULT_SQUARE_HEIGHT / 2
+  const previewRect =
+    interactions.draft?.kind === "square" && interactions.draft
+      ? normalizeBox(
+          interactions.draft.start,
+          interactions.draft.current
         )
-      );
-    } else {
-      const box = normalizeBox(drawing.start, drawing.current);
-      addElement(
-        createSquare(
-          box.x,
-          box.y,
-          Math.max(box.width, 4),
-          Math.max(box.height, 4)
-        )
-      );
-    }
-    setDrawing(null);
-  };
-
-  const preview = drawing ? normalizeBox(drawing.start, drawing.current) : null;
+      : null;
+  const previewDraw =
+    interactions.draft?.kind === "draw" ? interactions.draft.points : null;
 
   return (
     <div className="canvas-stage-host" ref={containerRef}>
@@ -147,37 +61,54 @@ export function CanvasStage() {
         ref={stageRef}
         width={size.width}
         height={size.height}
-        onMouseDown={handlePointerDown}
-        onMousemove={handlePointerMove}
-        onMouseUp={handlePointerUp}
-        onMouseLeave={() => setDrawing(null)}
-        onTouchStart={handlePointerDown}
-        onTouchMove={handlePointerMove}
-        onTouchEnd={handlePointerUp}
+        x={camera.x}
+        y={camera.y}
+        scaleX={camera.scale}
+        scaleY={camera.scale}
+        onMouseDown={interactions.handlePointerDown}
+        onMousemove={interactions.handlePointerMove}
+        onMouseUp={interactions.handlePointerUp}
+        onMouseLeave={interactions.handlePointerLeave}
+        onTouchStart={interactions.handlePointerDown}
+        onTouchMove={interactions.handlePointerMove}
+        onTouchEnd={interactions.handlePointerUp}
+        onWheel={interactions.handleWheel}
       >
         <Layer>
-          <GridBackground width={size.width} height={size.height} />
+          <GridBackground width={size.width} height={size.height} camera={camera} />
         </Layer>
         <Layer ref={layerRef}>
           {elements.map((element) => (
             <ElementNode key={element.id} element={element} />
           ))}
-          {drawing && preview && (
+          {previewRect && (
             <Rect
-              x={preview.x}
-              y={preview.y}
-              width={preview.width}
-              height={preview.height}
+              x={previewRect.x}
+              y={previewRect.y}
+              width={previewRect.width}
+              height={previewRect.height}
               fill="rgba(66, 98, 255, 0.08)"
               stroke={ACCENT_BLUE}
               strokeWidth={1.5}
               dash={[6, 4]}
             />
           )}
+          {previewDraw && previewDraw.length > 1 && (
+            <Line
+              points={flattenPoints(previewDraw)}
+              stroke={DRAW_STROKE}
+              strokeWidth={DRAW_STROKE_WIDTH}
+              tension={DRAW_TENSION}
+              lineCap="round"
+              lineJoin="round"
+            />
+          )}
           <SelectionTransformer layerRef={layerRef} />
         </Layer>
       </Stage>
       <TextEditor stageRef={stageRef} />
+      <ColorPanel />
+      <BottomPanel stageRef={stageRef} size={size} />
     </div>
   );
 }

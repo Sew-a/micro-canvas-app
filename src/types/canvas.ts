@@ -1,4 +1,4 @@
-export type ToolId = "select" | "square" | "text";
+export type ToolId = "select" | "square" | "text" | "draw" | "sticker";
 
 interface BaseElement {
   id: string;
@@ -26,9 +26,41 @@ export interface TextElement extends BaseElement {
   padding: number;
 }
 
-export type CanvasElement = SquareElement | TextElement;
+export interface DrawElement extends BaseElement {
+  type: "draw";
+  points: ElementPosition[];
+  stroke: string;
+  strokeWidth: number;
+  tension: number;
+}
+
+export interface StickerElement extends BaseElement {
+  type: "sticker";
+  text: string;
+  width: number;
+  height: number;
+  fontSize: number;
+  fontFamily: string;
+  fill: string;
+  textFill: string;
+  padding: number;
+}
+
+export type TextBearingElement = TextElement | StickerElement;
+
+export type CanvasElement =
+  | SquareElement
+  | TextElement
+  | DrawElement
+  | StickerElement;
 
 export interface ElementPosition {
   x: number;
   y: number;
+}
+
+export interface Camera {
+  x: number;
+  y: number;
+  scale: number;
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, type RefObject } from "react";
 import type Konva from "konva";
 import { Transformer } from "react-konva";
 import { ACCENT_BLUE, DEFAULT_SQUARE_MIN } from "../../constants/canvas";
+import { handleTransformEnd } from "../../lib/interactions/transform";
 import { useCanvasStore } from "../../store/canvasStore";
 
 interface SelectionTransformerProps {
@@ -14,12 +15,10 @@ export function SelectionTransformer({ layerRef }: SelectionTransformerProps) {
   const selectedElement = useCanvasStore((state) =>
     state.elements.find((element) => element.id === state.selectedId)
   );
-  const updateElement = useCanvasStore((state) => state.updateElement);
 
   const transformerRef = useRef<Konva.Transformer>(null);
 
-  const enabled =
-    activeTool === "select" && selectedElement?.type === "square";
+  const enabled = activeTool === "select" && selectedElement?.type === "square";
 
   useEffect(() => {
     const transformer = transformerRef.current;
@@ -36,22 +35,6 @@ export function SelectionTransformer({ layerRef }: SelectionTransformerProps) {
   }, [enabled, selectedId, layerRef]);
 
   if (!enabled) return null;
-
-  const handleTransformEnd = () => {
-    const transformer = transformerRef.current;
-    if (!transformer || !selectedId) return;
-    const node = transformer.nodes()[0];
-    if (!node || !node.isVisible()) return;
-
-    const box = node.getClientRect();
-    node.scaleX(1);
-    node.scaleY(1);
-
-    const width = Math.max(DEFAULT_SQUARE_MIN, box.width);
-    const height = Math.max(DEFAULT_SQUARE_MIN, box.height);
-    updateElement(selectedId, { width, height });
-    transformer.getLayer()?.batchDraw();
-  };
 
   return (
     <Transformer
@@ -70,7 +53,9 @@ export function SelectionTransformer({ layerRef }: SelectionTransformerProps) {
           ? oldBox
           : newBox
       }
-      onTransformEnd={handleTransformEnd}
+      onTransformEnd={() =>
+        handleTransformEnd(transformerRef.current, selectedId)
+      }
     />
   );
 }

@@ -1,12 +1,12 @@
 :root {
-  --app-text: #1f2329;
-  --app-text-muted: #8a9099;
-  --app-border: #e5e7eb;
-  --app-bg: #ffffff;
-  --app-hover: #f2f4f8;
+  --app-text: #e8eaf1;
+  --app-text-muted: #868e9e;
+  --app-border: #2b303c;
+  --app-bg: #171a21;
+  --app-hover: #232833;
   --app-accent: #4262ff;
-  --app-accent-soft: #eef1ff;
-  --app-accent-border: #d4ddff;
+  --app-accent-soft: #232a4d;
+  --app-accent-border: #323c66;
 
   font: 14px/1.4 system-ui, "Segoe UI", Roboto, sans-serif;
   color: var(--app-text);

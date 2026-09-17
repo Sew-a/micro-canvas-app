@@ -16,15 +16,14 @@ export default defineConfig(({ mode }) => {
         exposes: {
           './DemosApp': './src/App.tsx',
         },
-        shared: {
-          react: { singleton: true, requiredVersion: '^18.3.1' },
-          'react-dom': { singleton: true, requiredVersion: '^18.3.1' },
-        },
         dts: false,
       }),
     ],
     server: {
       port: 3001,
+    },
+    resolve: {
+      dedupe: ['react', 'react-dom'],
     },
   };
 });

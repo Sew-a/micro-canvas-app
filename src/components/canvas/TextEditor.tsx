@@ -1,11 +1,17 @@
 import {
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
   type RefObject,
 } from "react";
 import type Konva from "konva";
-import { isTextElement } from "../../lib/elements";
+import { TEXT_PLACEHOLDER } from "../../constants/canvas";
+import { isTextBearingElement } from "../../lib/elements";
+import {
+  cancelTextEdit,
+  commitTextEdit,
+} from "../../lib/interactions/textEdit";
 import { useCanvasStore } from "../../store/canvasStore";
 
 interface TextEditorProps {
@@ -22,11 +28,11 @@ interface EditorGeometry {
 export function TextEditor({ stageRef }: TextEditorProps) {
   const editingId = useCanvasStore((state) => state.editingId);
   const elements = useCanvasStore((state) => state.elements);
-  const updateElement = useCanvasStore((state) => state.updateElement);
-  const setEditing = useCanvasStore((state) => state.setEditing);
-
-  const element = elements.find((element) => element.id === editingId);
+  const camera = useCanvasStore((state) => state.camera);
+  const element = elements.find((candidate) => candidate.id === editingId);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const prevIdRef = useRef<string | null>(null);
+  const lastValueRef = useRef<string>("");
   const [value, setValue] = useState("");
   const [geometry, setGeometry] = useState<EditorGeometry>({
     left: 0,
@@ -35,14 +41,40 @@ export function TextEditor({ stageRef }: TextEditorProps) {
     height: 40,
   });
 
+  useEffect(() => {
+    lastValueRef.current = value;
+  });
+
   useLayoutEffect(() => {
     const stage = stageRef.current;
-    if (!stage || !element || !isTextElement(element)) return;
+    if (!stage || !element || !isTextBearingElement(element)) return;
+
+    if (prevIdRef.current && prevIdRef.current !== element.id) {
+      commitTextEdit(prevIdRef.current, lastValueRef.current);
+    }
+    prevIdRef.current = element.id;
 
     setValue(element.text);
 
-    const node = stage.findOne("#" + element.id);
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.value = element.text;
+      textarea.focus();
+      const end = element.text.length;
+      if (element.type === "sticker") {
+        textarea.setSelectionRange(0, end);
+      } else {
+        textarea.setSelectionRange(end, end);
+      }
+    }
+  }, [editingId, element, stageRef]);
+
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!stage || !element || !isTextBearingElement(element)) return;
+
     const stageBox = stage.content.getBoundingClientRect();
+    const node = stage.findOne("#" + element.id);
 
     if (node) {
       const rect = node.getClientRect({
@@ -59,52 +91,41 @@ export function TextEditor({ stageRef }: TextEditorProps) {
       });
     } else {
       setGeometry({
-        left: stageBox.left + element.x,
-        top: stageBox.top + element.y,
+        left: stageBox.left + element.x * camera.scale + camera.x - element.padding,
+        top: stageBox.top + element.y * camera.scale + camera.y - element.padding,
         width: 220,
         height: 44,
       });
     }
+  }, [camera, element, stageRef]);
 
-    const frame = requestAnimationFrame(() => {
-      const textarea = textareaRef.current;
-      if (textarea) {
-        textarea.focus();
-        textarea.select();
-      }
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [editingId, stageRef, element]);
+  if (!element || !isTextBearingElement(element)) return null;
 
-  if (!element || !isTextElement(element)) return null;
-
-  const commit = () => {
-    const next = value.trim();
-    updateElement(element.id, { text: next.length > 0 ? next : element.text });
-    setEditing(null);
-  };
+  const handleCommit = () => commitTextEdit(element.id, value);
 
   return (
     <textarea
       ref={textareaRef}
       className="text-editor"
+      placeholder={TEXT_PLACEHOLDER}
       style={{
         left: geometry.left,
         top: geometry.top,
         width: geometry.width,
         minHeight: geometry.height,
+        textAlign: element.type === "sticker" ? "center" : "left",
       }}
       value={value}
       onChange={(event) => setValue(event.target.value)}
       onKeyDown={(event) => {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
-          commit();
+          handleCommit();
         } else if (event.key === "Escape") {
-          setEditing(null);
+          cancelTextEdit();
         }
       }}
-      onBlur={commit}
+      onBlur={handleCommit}
     />
   );
 }

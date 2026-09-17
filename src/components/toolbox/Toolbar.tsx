@@ -19,12 +19,11 @@ export function Toolbar() {
             key={tool.id}
             type="button"
             className={`tool-btn${activeTool === tool.id ? " active" : ""}`}
-            title={`${tool.label} (${tool.shortcut}) — ${tool.hint}`}
+            title={`${tool.label} — ${tool.hint}`}
             onClick={() => setActiveTool(tool.id)}
           >
             <span className="tool-icon">{tool.icon}</span>
             <span className="tool-label">{tool.label}</span>
-            <kbd className="tool-kbd">{tool.shortcut}</kbd>
           </button>
         ))}
       </div>
