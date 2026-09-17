@@ -16,6 +16,12 @@ export default defineConfig(({ mode }) => {
         exposes: {
           './DemosApp': './src/App.tsx',
         },
+        shared: {
+          react: { singleton: true },
+          'react/': { singleton: true },
+          'react-dom': { singleton: true },
+          'react-dom/': { singleton: true },
+        },
         dts: false,
       }),
     ],
